@@ -8,6 +8,7 @@
 - Fixed Windows Shift+Enter detection by extending the native Win32 helper to report modifier key state.
 - Fixed the npm package omitting the source and build script needed to rebuild the Windows native addon.
 - Fixed the npm package omitting the source and build script needed to rebuild the Darwin native addon.
+- Fixed Windows Shift+Enter detection by extending the native Win32 helper to report modifier key state.
 - Fixed Windows console truecolor detection when Windows Terminal does not provide `WT_SESSION` to child shells.
 - Fixed terminal width accounting for Indic conjunct grapheme clusters ([#6124](https://github.com/earendil-works/pi/issues/6124) by [@petrroll](https://github.com/petrroll)).
 - Fixed phantom alternate-screen text selection from unmatched mouse events when changing terminal pane focus.
