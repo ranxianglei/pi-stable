@@ -484,7 +484,13 @@ async function getSelfUpdatePlan(force: boolean): Promise<SelfUpdatePlan> {
 		throw new Error(`Could not determine latest ${APP_NAME} version.`);
 	}
 
-	const packageName = latestRelease.packageName ?? PACKAGE_NAME;
+	// Fork protection: if the version endpoint reported a different package
+	// name than ours (e.g. the upstream endpoint), ignore it and update our
+	// own package. This prevents a fork from "updating" back to upstream.
+	const packageName =
+		latestRelease.packageName && latestRelease.packageName === PACKAGE_NAME
+			? latestRelease.packageName
+			: PACKAGE_NAME;
 	const installSpec = `${packageName}@${latestRelease.version}`;
 	if (force || packageName !== PACKAGE_NAME || isNewerPackageVersion(latestRelease.version, VERSION)) {
 		return {

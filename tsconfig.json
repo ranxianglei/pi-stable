@@ -22,9 +22,19 @@
 			"@earendil-works/pi-tui": ["./packages/tui/src/index.ts"],
 			"@earendil-works/pi-tui/*": ["./packages/tui/src/*"],
 			"@earendil-works/pi-agent-old": ["./packages/agent-old/src/index.ts"],
-			"@earendil-works/pi-agent-old/*": ["./packages/agent-old/src/*"]
+			"@earendil-works/pi-agent-old/*": ["./packages/agent-old/src/*"],
+			"pi-stable": ["./packages/coding-agent/src/index.ts"],
+			"pi-stable/hooks": ["./packages/coding-agent/src/core/hooks/index.ts"],
+			"pi-stable/*": ["./packages/coding-agent/src/*"],
+			"pi-stable-ai": ["./packages/ai/src/index.ts"],
+			"pi-stable-ai/oauth": ["./packages/ai/src/oauth.ts"],
+			"pi-stable-ai/*": ["./packages/ai/src/*.ts", "./packages/ai/src/providers/*.ts"],
+			"pi-stable-agent-core": ["./packages/agent/src/index.ts"],
+			"pi-stable-agent-core/*": ["./packages/agent/src/*"],
+			"pi-stable-tui": ["./packages/tui/src/index.ts"],
+			"pi-stable-tui/*": ["./packages/tui/src/*"]
 		}
 	},
 	"include": ["packages/*/src/**/*", "packages/*/test/**/*", "packages/storage/*/src/**/*", "packages/storage/*/test/**/*", "packages/coding-agent/examples/**/*"],
-	"exclude": ["**/dist/**", "packages/coding-agent/examples/extensions/gondolin/**"]
+	"exclude": ["**/dist/**", "packages/coding-agent/examples/extensions/gondolin/**", "packages/ai/test/**"]
 }

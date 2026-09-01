@@ -1,7 +1,9 @@
 import { compare, valid } from "semver";
 import { getPiUserAgent } from "./pi-user-agent.ts";
+import { PACKAGE_NAME } from "../config.ts";
 
 const LATEST_VERSION_URL = "https://pi.dev/api/latest-version";
+const NPM_REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 10000;
 
 export interface LatestPiRelease {
@@ -32,13 +34,35 @@ export async function getLatestPiRelease(
 	options: { timeoutMs?: number } = {},
 ): Promise<LatestPiRelease | undefined> {
 	if (process.env.PI_OFFLINE) return undefined;
+	const timeoutMs = options.timeoutMs ?? DEFAULT_VERSION_CHECK_TIMEOUT_MS;
 
+	// Fork-aware: query npm registry for THIS package (PACKAGE_NAME) first.
+	// pi.dev/api/latest-version reports the upstream release, which is wrong
+	// for forks (it would "update" a fork back to @earendil-works/pi-*).
+	// npm registry is authoritative for the installed package name.
+	try {
+		const npmRes = await fetch(NPM_REGISTRY_URL, {
+			headers: { accept: "application/json" },
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+		if (npmRes.ok) {
+			const npmData = (await npmRes.json()) as { version?: unknown };
+			if (typeof npmData.version === "string" && npmData.version.trim()) {
+				return { version: npmData.version.trim(), packageName: PACKAGE_NAME };
+			}
+		}
+	} catch {
+		// npm unreachable — fall through to pi.dev
+	}
+
+	// Fallback: pi.dev endpoint. Only trust if it names the same package as
+	// ours; otherwise ignore (it is the upstream release, not ours).
 	const response = await fetch(LATEST_VERSION_URL, {
 		headers: {
 			"User-Agent": getPiUserAgent(currentVersion),
 			accept: "application/json",
 		},
-		signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_VERSION_CHECK_TIMEOUT_MS),
+		signal: AbortSignal.timeout(timeoutMs),
 	});
 	if (!response.ok) return undefined;
 
@@ -50,12 +74,16 @@ export async function getLatestPiRelease(
 	if (typeof data.version !== "string" || !data.version.trim()) {
 		return undefined;
 	}
-	const packageName =
+	const upstreamPackageName =
 		typeof data.packageName === "string" && data.packageName.trim() ? data.packageName.trim() : undefined;
+	if (upstreamPackageName && upstreamPackageName !== PACKAGE_NAME) {
+		// pi.dev is reporting the upstream release, not ours. Ignore it.
+		return undefined;
+	}
 	const note = typeof data.note === "string" && data.note.trim() ? data.note.trim() : undefined;
 	return {
 		version: data.version.trim(),
-		packageName,
+		packageName: PACKAGE_NAME,
 		...(note ? { note } : {}),
 	};
 }

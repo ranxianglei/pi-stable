@@ -1,10 +1,10 @@
 {
 	"name": "pi-stable-install",
-	"version": "0.83.0",
+	"version": "0.83.5",
 	"private": true,
 	"description": "Lockfile root used by the Pi installer and updater.",
 	"dependencies": {
-		"pi-stable": "0.83.0"
+		"pi-stable": "0.83.5"
 	},
 	"overrides": {
 		"protobufjs": "7.6.5",
