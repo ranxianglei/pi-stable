@@ -1284,16 +1284,21 @@ export class TUI extends Container {
 
 		newLines = this.applyLineResets(newLines);
 
-		// Helper to clear scrollback and viewport and render all new lines
-		const fullRender = (clear: boolean): void => {
+		// Helper to clear viewport and render new lines.
+		// With startLine > 0 only the tail window [startLine..end] is written and the
+		// scrollback is kept, so long histories are never replayed on screen.
+		const fullRender = (clear: boolean, startLine = 0): void => {
 			this.fullRedrawCount += 1;
 			let buffer = "\x1b[?2026h"; // Begin synchronized output
 			if (clear) {
 				buffer += this.deleteKittyImages(this.previousKittyImageIds);
-				buffer += "\x1b[2J\x1b[H\x1b[3J"; // Clear screen, home, then clear scrollback
+				buffer += "\x1b[2J\x1b[H"; // Clear screen and home
+				if (startLine === 0) {
+					buffer += "\x1b[3J"; // Clear scrollback
+				}
 			}
-			for (let i = 0; i < newLines.length; i++) {
-				if (i > 0) buffer += "\r\n";
+			for (let i = startLine; i < newLines.length; i++) {
+				if (i > startLine) buffer += "\r\n";
 				const line = newLines[i];
 				const isImage = isImageLine(line);
 				const imageReservedRows = isImage ? this.getKittyImageReservedRows(newLines, i) : 1;
@@ -1406,6 +1411,17 @@ export class TUI extends Container {
 			return;
 		}
 
+		// Content shrank and the visible viewport must move up to keep the tail
+		// pinned to the bottom. Repaint only the last `height` lines: replaying
+		// the whole history would scroll every message back on screen (issue #3).
+		if (newLines.length < this.previousLines.length && prevViewportTop > Math.max(0, newLines.length - height)) {
+			logRedraw(
+				`shrink moved viewport up (prev=${this.previousLines.length}, new=${newLines.length}, top=${prevViewportTop})`,
+			);
+			fullRender(true, Math.max(0, newLines.length - height));
+			return;
+		}
+
 		// All changes are in deleted lines (nothing to render, just clear)
 		if (firstChanged >= newLines.length) {
 			if (this.previousLines.length > newLines.length) {
@@ -1413,22 +1429,12 @@ export class TUI extends Container {
 				buffer += this.deleteChangedKittyImages(firstChanged, lastChanged);
 				// Move to end of new content (clamp to 0 for empty content)
 				const targetRow = Math.max(0, newLines.length - 1);
-				if (targetRow < prevViewportTop) {
-					logRedraw(`deleted lines moved viewport up (${targetRow} < ${prevViewportTop})`);
-					fullRender(true);
-					return;
-				}
 				const lineDiff = computeLineDiff(targetRow);
 				if (lineDiff > 0) buffer += `\x1b[${lineDiff}B`;
 				else if (lineDiff < 0) buffer += `\x1b[${-lineDiff}A`;
 				buffer += "\r";
 				// Clear extra lines without scrolling
 				const extraLines = this.previousLines.length - newLines.length;
-				if (extraLines > height) {
-					logRedraw(`extraLines > height (${extraLines} > ${height})`);
-					fullRender(true);
-					return;
-				}
 				const clearStartOffset = newLines.length === 0 ? 0 : 1;
 				if (extraLines > 0 && clearStartOffset > 0) {
 					buffer += `\x1b[${clearStartOffset}B`;
@@ -1456,11 +1462,27 @@ export class TUI extends Container {
 		}
 
 		// Differential rendering can only touch what was actually visible.
-		// If the first changed line is above the previous viewport, we need a full redraw.
+		// Changes above the previous viewport must not trigger a full redraw of the
+		// entire history: in long sessions that replays every message on screen
+		// (issue #3). Instead repaint only what the visible window needs.
 		if (firstChanged < prevViewportTop) {
-			logRedraw(`firstChanged < viewportTop (${firstChanged} < ${prevViewportTop})`);
-			fullRender(true);
-			return;
+			if (lastChanged < prevViewportTop) {
+				// All changes are above the visible viewport: the screen content is
+				// unchanged. Scrollback above the viewport becomes stale; leave the
+				// screen and cursor alone.
+				logRedraw(`changes above viewport only (lastChanged=${lastChanged} < ${prevViewportTop})`);
+				this.positionHardwareCursor(cursorPos, newLines.length);
+				this.previousLines = newLines;
+				this.previousKittyImageIds = this.collectKittyImageIds(newLines);
+				this.previousWidth = width;
+				this.previousHeight = height;
+				this.previousViewportTop = prevViewportTop;
+				return;
+			}
+			// Same-length changes spanning the viewport boundary: repaint only the
+			// visible part.
+			logRedraw(`firstChanged < viewportTop, clamped (${firstChanged} < ${prevViewportTop})`);
+			firstChanged = prevViewportTop;
 		}
 
 		// Render from first changed line to end
