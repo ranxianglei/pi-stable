@@ -110,6 +110,13 @@ export interface Provider<TApi extends Api = Api> {
 	 */
 	filterModels?(models: readonly Model<TApi>[], credential: Credential | undefined): readonly Model<TApi>[];
 
+	/**
+	 * Mixed-API providers only: reports whether a model api has a stream
+	 * implementation in the provider's api map. Single-implementation
+	 * providers leave this undefined and stream every model api they hold.
+	 */
+	apiSurface?(api: Api): boolean;
+
 	stream<T extends TApi>(
 		model: Model<T>,
 		context: Context,
@@ -616,6 +623,7 @@ export function createProvider<TApi extends Api = Api>(input: CreateProviderOpti
 				}
 			: undefined,
 		filterModels: input.filterModels,
+		apiSurface: byApi ? (api: Api) => api in byApi : undefined,
 		stream: (model, context, options) => dispatch(model, (streams) => streams.stream(model, context, options)),
 		streamSimple: (model, context, options) =>
 			dispatch(model, (streams) => streams.streamSimple(model, context, options)),

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Bumped `undici` from 8.5.0 to 8.9.0 and pinned `brace-expansion` to 5.0.9 to resolve high-severity production dependency vulnerabilities flagged by npm audit ([#6](https://github.com/ranxianglei/pi-stable/issues/6)).
+
 ## [0.83.0] - 2026-07-29
 
 ### New Features
