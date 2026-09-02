@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed the Cloudflare AI Gateway provider to declare its full API surface (`anthropic-messages`, `openai-completions`, `openai-responses`) explicitly, so type checking no longer fails when the generated model catalog omits an API group ([#6](https://github.com/ranxianglei/pi-stable/issues/6)).
+
 ## [0.83.0] - 2026-07-29
 
 ### Breaking Changes
