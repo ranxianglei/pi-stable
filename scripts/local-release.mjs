@@ -169,16 +169,16 @@ function buildBunBinaryRelease(targetDirectory, archiveDirectory) {
 function createPiShim(installDirectory) {
 	const binDirectory = join(installDirectory, "node_modules", ".bin");
 	if (process.platform === "win32") {
-		if (existsSync(join(binDirectory, "pi.cmd"))) {
-			writeFileSync(join(installDirectory, "pi.cmd"), '@ECHO off\r\n"%~dp0node_modules\\.bin\\pi.cmd" %*\r\n');
-			writeFileSync(join(installDirectory, "pi.ps1"), '& "$PSScriptRoot/node_modules/.bin/pi.ps1" @args\n');
+		if (existsSync(join(binDirectory, `${binName}.cmd`))) {
+			writeFileSync(join(installDirectory, "pi.cmd"), `@ECHO off\r\n"%~dp0node_modules\\.bin\\${binName}.cmd" %*\r\n`);
+			writeFileSync(join(installDirectory, "pi.ps1"), `& "$PSScriptRoot/node_modules/.bin/${binName}.ps1" @args\n`);
 			return;
 		}
-		writeFileSync(join(installDirectory, "pi.cmd"), '@ECHO off\r\n"%~dp0node_modules\\.bin\\pi.exe" %*\r\n');
-		writeFileSync(join(installDirectory, "pi.ps1"), '& "$PSScriptRoot/node_modules/.bin/pi.exe" @args\n');
+		writeFileSync(join(installDirectory, "pi.cmd"), `@ECHO off\r\n"%~dp0node_modules\\.bin\\${binName}.exe" %*\r\n`);
+		writeFileSync(join(installDirectory, "pi.ps1"), `& "$PSScriptRoot/node_modules/.bin/${binName}.exe" @args\n`);
 		return;
 	}
-	symlinkSync(join("node_modules", ".bin", "pi"), join(installDirectory, "pi"));
+	symlinkSync(join("node_modules", ".bin", binName), join(installDirectory, "pi"));
 }
 
 function packPackage(pkg, tarballDirectory) {
@@ -202,6 +202,7 @@ const rootPackageJson = readPackageJson(repoRoot);
 if (rootPackageJson.name !== "pi-monorepo") {
 	throw new Error("Run this script from the repository root");
 }
+const binName = Object.keys(readPackageJson("packages/coding-agent").bin)[0];
 
 const outDir = prepareOutputDirectory(options, repoRoot);
 const tarballDirectory = join(outDir, "tarballs");
@@ -273,7 +274,7 @@ if (!options.skipInstall) {
 	console.log(`  ${binaryDirectory}`);
 	console.log(`  ${join(outDir, `pi-${binaryPlatform}.${String(binaryPlatform).startsWith("windows-") ? "zip" : "tar.gz"}`)}`);
 	console.log("\nRun the local Bun binary release from outside the repository:");
-	console.log(`  ${join(binaryDirectory, String(binaryPlatform).startsWith("windows-") ? "pi.exe" : "pi")} --help`);
+	console.log(`  ${join(binaryDirectory, String(binaryPlatform).startsWith("windows-") ? `${binName}.exe` : binName)} --help`);
 
 	console.log("\nIsolated npm install:");
 	console.log(`  ${nodeInstallDirectory}`);
