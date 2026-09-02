@@ -38,11 +38,14 @@ describe("version checks", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(checkForNewPiVersion("1.2.3")).resolves.toBeUndefined();
-		await expect(checkForNewPiVersion("1.2.2")).resolves.toEqual({ version: "1.2.3" });
+		await expect(checkForNewPiVersion("1.2.2")).resolves.toEqual({ version: "1.2.3", packageName: "pi-stable" });
 	});
 
-	it("uses the pi.dev version check api with a pi user agent", async () => {
-		const fetchMock = vi.fn(async () => Response.json({ version: "1.2.4" }));
+	it("falls back to the pi.dev version check api with a pi user agent", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValueOnce("npm unreachable")
+			.mockResolvedValue(Response.json({ version: "1.2.4" }));
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiVersion("1.2.3")).resolves.toBe("1.2.4");
@@ -67,16 +70,23 @@ describe("version checks", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
-			packageName: "@new-scope/pi",
 			version: "1.2.4",
+			packageName: "pi-stable",
 		});
 	});
 
 	it("returns update notes from the version check api", async () => {
-		const fetchMock = vi.fn(async () => Response.json({ note: " **Read this** ", version: "1.2.4" }));
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValueOnce("npm unreachable")
+			.mockResolvedValue(Response.json({ note: " **Read this** ", version: "1.2.4" }));
 		vi.stubGlobal("fetch", fetchMock);
 
-		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({ note: "**Read this**", version: "1.2.4" });
+		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
+			note: "**Read this**",
+			version: "1.2.4",
+			packageName: "pi-stable",
+		});
 	});
 
 	it("skips automatic api calls when version checks are disabled", async () => {
