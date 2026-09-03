@@ -6,6 +6,7 @@
 
 - Fixed the Cloudflare AI Gateway provider to declare its full API surface (`anthropic-messages`, `openai-completions`, `openai-responses`) explicitly, so type checking no longer fails when the generated model catalog omits an API group ([#6](https://github.com/ranxianglei/pi-stable/issues/6)).
 - Fixed built-in provider dispatch to consult a mixed-API provider's declared api map, so the Cloudflare AI Gateway `/compat` and Workers AI paths stay routable when the generated catalog omits the `openai-completions` group ([#7](https://github.com/ranxianglei/pi-stable/issues/7)).
+- Fixed OpenAI-compatible assistant replay to serialize tool-call-only assistant messages with `content: ""` instead of `content: null`, which some OpenAI-compatible proxies reject or answer with an empty, never-ending stream ([#1](https://github.com/ranxianglei/pi-stable/issues/1)).
 
 ## [0.83.0] - 2026-07-29
 
