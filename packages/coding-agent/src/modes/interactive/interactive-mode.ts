@@ -368,6 +368,14 @@ export class InteractiveMode {
 	// Tool execution tracking: toolCallId -> component
 	private pendingTools = new Map<string, ToolExecutionComponent>();
 
+	// Message render limit tracking: groups of chat-container children materialized
+	// per session item, so terminal.messageRenderLimit is enforced continuously as
+	// items are appended to a live session (not only at rebuild time). Rebuilt from
+	// scratch by renderSessionItems on every full render pass.
+	private materializedChatItems: Component[][] = [];
+	private messageLimitNoticeText: Text | undefined = undefined;
+	private hiddenEarlierMessageCount = 0;
+
 	// Tool output expansion state
 	private toolOutputExpanded = false;
 
@@ -2926,6 +2934,7 @@ export class InteractiveMode {
 					);
 					this.streamingMessage = event.message;
 					this.chatContainer.addChild(this.streamingComponent);
+					this.recordChatItem([this.streamingComponent]);
 					this.streamingComponent.updateContent(this.streamingMessage);
 					this.ui.requestRender();
 				}
@@ -2953,6 +2962,7 @@ export class InteractiveMode {
 								);
 								component.setExpanded(this.toolOutputExpanded);
 								this.chatContainer.addChild(component);
+								this.recordChatItem([component]);
 								this.pendingTools.set(content.id, component);
 							} else {
 								const component = this.pendingTools.get(content.id);
@@ -3027,6 +3037,7 @@ export class InteractiveMode {
 					);
 					component.setExpanded(this.toolOutputExpanded);
 					this.chatContainer.addChild(component);
+					this.recordChatItem([component]);
 					this.pendingTools.set(event.toolCallId, component);
 				}
 				component.markExecutionStarted();
@@ -3232,14 +3243,17 @@ export class InteractiveMode {
 			const streamingIndex = this.chatContainer.children.indexOf(this.streamingComponent);
 			if (streamingIndex >= 0) {
 				this.chatContainer.children.splice(streamingIndex, 0, component);
+				this.recordChatItem([component]);
 				return;
 			}
 		}
 
 		this.chatContainer.addChild(component);
+		this.recordChatItem([component]);
 	}
 
 	private addMessageToChat(message: AgentMessage, options?: { populateHistory?: boolean }): void {
+		const childrenBefore = this.chatContainer.children.length;
 		switch (message.role) {
 			case "bashExecution": {
 				const component = new BashExecutionComponent(message.command, this.ui, message.excludeFromContext);
@@ -3341,6 +3355,79 @@ export class InteractiveMode {
 				const _exhaustive: never = message;
 			}
 		}
+		this.recordChatItem(this.chatContainer.children.slice(childrenBefore));
+	}
+
+	/**
+	 * Record the chat-container children materialized for one session item so
+	 * terminal.messageRenderLimit can be enforced continuously while a live
+	 * session grows. Full render passes (renderSessionItems) reset the list.
+	 */
+	private recordChatItem(children: Component[]): void {
+		if (children.length === 0) return;
+		this.materializedChatItems.push(children);
+		this.trimOldestChatItems();
+	}
+
+	/**
+	 * Drop the oldest materialized chat items while their count exceeds
+	 * terminal.messageRenderLimit, keeping only the trailing N in the container.
+	 * Children already removed from the container (e.g. an aborted streaming
+	 * component dropped by agent_end) are tolerated and skipped.
+	 */
+	private trimOldestChatItems(): void {
+		const limit = this.settingsManager.getMessageRenderLimit();
+		if (limit <= 0 || this.materializedChatItems.length <= limit) return;
+
+		let removedGroups = 0;
+		while (this.materializedChatItems.length > limit) {
+			const group = this.materializedChatItems.shift()!;
+			for (const child of group) {
+				const index = this.chatContainer.children.indexOf(child);
+				if (index >= 0) {
+					this.chatContainer.children.splice(index, 1);
+				}
+			}
+			this.hiddenEarlierMessageCount += 1;
+			removedGroups += 1;
+		}
+		if (removedGroups > 0) {
+			this.ensureMessageLimitNotice();
+			this.ui.requestRender();
+		}
+	}
+
+	/**
+	 * Keep the "… N earlier messages not shown" notice above the first retained
+	 * chat item, updating its count in place as more items get hidden.
+	 */
+	private ensureMessageLimitNotice(): void {
+		if (this.hiddenEarlierMessageCount <= 0) return;
+		const label = theme.fg(
+			"dim",
+			`… ${this.hiddenEarlierMessageCount} earlier message${this.hiddenEarlierMessageCount === 1 ? "" : "s"} not shown (kept in session)`,
+		);
+		if (this.messageLimitNoticeText) {
+			this.messageLimitNoticeText.setText(label);
+			return;
+		}
+		const spacer = new Spacer(1);
+		const text = new Text(label, 1, 0);
+		let insertAt = 0;
+		let found = false;
+		for (const group of this.materializedChatItems) {
+			for (const child of group) {
+				const index = this.chatContainer.children.indexOf(child);
+				if (index >= 0) {
+					insertAt = index;
+					found = true;
+					break;
+				}
+			}
+			if (found) break;
+		}
+		this.chatContainer.children.splice(insertAt, 0, spacer, text);
+		this.messageLimitNoticeText = text;
 	}
 
 	private renderSessionItems(
@@ -3348,6 +3435,9 @@ export class InteractiveMode {
 		options: { updateFooter?: boolean; populateHistory?: boolean } = {},
 	): void {
 		this.pendingTools.clear();
+		this.materializedChatItems = [];
+		this.messageLimitNoticeText = undefined;
+		this.hiddenEarlierMessageCount = 0;
 		const renderedPendingTools = new Map<string, ToolExecutionComponent>();
 		// Cache-miss notices are not persisted; re-derive them from the full entry
 		// list and re-inject them after the assistant messages that paid for them.
@@ -3370,17 +3460,18 @@ export class InteractiveMode {
 		if (renderLimit > 0 && items.length > renderLimit) {
 			itemsToRender = items.slice(items.length - renderLimit);
 			hiddenCount = items.length - itemsToRender.length;
-			this.chatContainer.addChild(new Spacer(1));
-			this.chatContainer.addChild(
-				new Text(
-					theme.fg(
-						"dim",
-						`… ${hiddenCount} earlier message${hiddenCount === 1 ? "" : "s"} not shown (kept in session)`,
-					),
-					1,
-					0,
+			this.hiddenEarlierMessageCount = hiddenCount;
+			const noticeText = new Text(
+				theme.fg(
+					"dim",
+					`… ${hiddenCount} earlier message${hiddenCount === 1 ? "" : "s"} not shown (kept in session)`,
 				),
+				1,
+				0,
 			);
+			this.chatContainer.addChild(new Spacer(1));
+			this.chatContainer.addChild(noticeText);
+			this.messageLimitNoticeText = noticeText;
 		}
 
 		for (const item of itemsToRender) {
@@ -3410,6 +3501,7 @@ export class InteractiveMode {
 						);
 						component.setExpanded(this.toolOutputExpanded);
 						this.chatContainer.addChild(component);
+						this.recordChatItem([component]);
 
 						if (message.stopReason === "aborted" || message.stopReason === "error") {
 							let errorMessage: string;
@@ -3495,8 +3587,11 @@ export class InteractiveMode {
 			label = `Cache miss after ${Math.round(miss.idleMs / 60_000)}m idle`;
 		}
 		const text = theme.fg("warning", `${label}: ${reBilled}`);
-		this.chatContainer.addChild(new Spacer(1));
-		this.chatContainer.addChild(new Text(text, 1, 0));
+		const spacer = new Spacer(1);
+		const notice = new Text(text, 1, 0);
+		this.chatContainer.addChild(spacer);
+		this.chatContainer.addChild(notice);
+		this.recordChatItem([spacer, notice]);
 	}
 
 	renderInitialMessages(): void {
