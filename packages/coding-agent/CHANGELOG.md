@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Continuously enforce `terminal.messageRenderLimit` in live sessions: once appended messages exceed the limit, the oldest chat items are now removed incrementally instead of only being trimmed when the chat is rebuilt, keeping long-session redraw cost bounded ([#4](https://github.com/ranxianglei/pi-stable/issues/4)).
+
+### Fixed
+
+- Fixed `terminal.messageRenderLimit` leaving `4167-thinking-toggle-pending-tool-render.test.ts` failing on master because the test fake lacked `getMessageRenderLimit` ([#4](https://github.com/ranxianglei/pi-stable/issues/4)).
+
 ## [0.83.0] - 2026-07-29
 
 ### New Features

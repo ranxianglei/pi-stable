@@ -42,6 +42,7 @@ type RenderSessionContextThis = {
 		getShowImages(): boolean;
 		getImageWidthCells(): number;
 		getShowCacheMissNotices(): boolean;
+		getMessageRenderLimit(): number;
 	};
 	sessionManager: { getCwd(): string; getEntries(): SessionEntry[] };
 	session: { retryAttempt: number; modelRegistry: { find(provider: string, modelId: string): undefined } };
@@ -63,7 +64,16 @@ type HandleEvent = (this: RenderSessionContextThis, event: AgentSessionEvent) =>
 
 function createFakeInteractiveModeThis(): RenderSessionContextThis {
 	const chatContainer = new Container();
-	return {
+	// Copy prototype methods as own properties: internal this.method dispatch must resolve,
+	// but the class instance fields (session/settingsManager/...) are getter-only accessors
+	// that reject assignment on a prototype-chained object.
+	const fakeThis = {} as RenderSessionContextThis & Record<string, unknown>;
+	for (const [name, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(InteractiveMode.prototype))) {
+		if (typeof descriptor.value === "function") {
+			Object.defineProperty(fakeThis, name, descriptor);
+		}
+	}
+	Object.assign(fakeThis, {
 		pendingTools: new Map<string, ToolExecutionComponent>(),
 		chatContainer,
 		footer: { invalidate: vi.fn() },
@@ -72,6 +82,7 @@ function createFakeInteractiveModeThis(): RenderSessionContextThis {
 			getShowImages: () => false,
 			getImageWidthCells: () => 60,
 			getShowCacheMissNotices: () => false,
+			getMessageRenderLimit: () => 0,
 		},
 		sessionManager: { getCwd: () => process.cwd(), getEntries: () => [] },
 		session: { retryAttempt: 0, modelRegistry: { find: () => undefined } },
@@ -79,12 +90,11 @@ function createFakeInteractiveModeThis(): RenderSessionContextThis {
 		isInitialized: true,
 		updateEditorBorderColor: vi.fn(),
 		getRegisteredToolDefinition: (_toolName: string) => undefined,
-		renderSessionItems: (InteractiveMode.prototype as unknown as { renderSessionItems: RenderSessionItems })
-			.renderSessionItems,
-		addMessageToChat(message: AgentMessage) {
-			chatContainer.addChild(new Text(message.role, 0, 0));
-		},
+	});
+	fakeThis.addMessageToChat = (message: AgentMessage) => {
+		chatContainer.addChild(new Text(message.role, 0, 0));
 	};
+	return fakeThis;
 }
 
 function createAssistantToolCallMessage(): AssistantMessage {
