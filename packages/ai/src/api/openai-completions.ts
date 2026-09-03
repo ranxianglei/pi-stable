@@ -1079,7 +1079,7 @@ export function convertMessages(
 			// Some providers don't accept null content, use empty string instead
 			const assistantMsg: ChatCompletionAssistantMessageParam = {
 				role: "assistant",
-				content: compat.requiresAssistantAfterToolResult ? "" : null,
+				content: "",
 			};
 
 			const assistantTextParts = msg.content
