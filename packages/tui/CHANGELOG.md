@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed the TUI replaying the entire conversation on screen when content above the visible viewport changed (e.g. tool output collapsing) in long sessions; the visible window is now repainted in place and the scrollback is preserved ([#3](https://github.com/ranxianglei/pi-stable/issues/3)).
+
 ## [0.83.0] - 2026-07-29
 
 ### Fixed

@@ -236,7 +236,10 @@ function hasResolvedCloudflareAuth(options: StreamOptions | undefined): boolean 
 function getBuiltinProviderForModel(model: Model<Api>) {
 	if (getApiProvider(model.api) !== builtinApiProviderInstances.get(model.api)) return undefined;
 	const provider = compatModels.getProvider(model.provider);
-	return provider?.getModels().some((candidate) => candidate.api === model.api) ? provider : undefined;
+	return provider &&
+		(provider.apiSurface?.(model.api) || provider.getModels().some((candidate) => candidate.api === model.api))
+		? provider
+		: undefined;
 }
 
 function resolveApiProvider(api: Api) {
