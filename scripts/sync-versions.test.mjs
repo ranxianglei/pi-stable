@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const syncVersionsScript = fileURLToPath(new URL("./sync-versions.js", import.meta.url));
+const checkPinnedDepsScript = fileURLToPath(new URL("./check-pinned-deps.mjs", import.meta.url));
 
 async function writeManifest(root, relativeDirectory, manifest) {
 	const directory = join(root, relativeDirectory);
@@ -23,6 +24,10 @@ function runSyncVersions(root) {
 		cwd: root,
 		encoding: "utf8",
 	});
+}
+
+function runCheckPinnedDeps(root) {
+	return spawnSync(process.execPath, [checkPinnedDepsScript], { cwd: root, encoding: "utf8" });
 }
 
 test("synchronizes private dependencies without touching registry aliases, generated manifests, or published lockstep", async () => {
@@ -58,7 +63,7 @@ test("synchronizes private dependencies without touching registry aliases, gener
 		assert.equal(result.status, 0, result.stderr);
 
 		const evalsManifest = await readManifest(root, "packages/evals");
-		assert.equal(evalsManifest.dependencies["pi-stable"], "^2.0.0");
+		assert.equal(evalsManifest.dependencies["pi-stable"], "2.0.0");
 		assert.equal(evalsManifest.dependencies["@mariozechner/pi-ai"], "npm:pi-stable-ai@1.0.0");
 		const generatedManifest = await readManifest(root, "packages/coding-agent/install-lock");
 		assert.equal(generatedManifest.dependencies["pi-stable"], "^1.0.0");
@@ -69,6 +74,34 @@ test("synchronizes private dependencies without touching registry aliases, gener
 		});
 		const lockstepFailure = runSyncVersions(root);
 		assert.equal(lockstepFailure.status, 1, lockstepFailure.stderr);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("keeps bare pi-stable dependency exact-pinned so the synced tree passes check:pinned-deps (#26)", async () => {
+	const root = await mkdtemp(join(tmpdir(), "pi-sync-pinned-"));
+	try {
+		await writeManifest(root, "packages/ai", { name: "pi-stable-ai", version: "2.0.0" });
+		await writeManifest(root, "packages/coding-agent", {
+			name: "pi-stable",
+			version: "2.0.0",
+			dependencies: { "pi-stable-ai": "1.0.0" },
+		});
+		await writeManifest(root, "packages/server", {
+			name: "pi-stable-server",
+			version: "2.0.0",
+			dependencies: { "pi-stable": "1.0.0" },
+		});
+
+		const result = runSyncVersions(root);
+		assert.equal(result.status, 0, result.stderr);
+
+		const serverManifest = await readManifest(root, "packages/server");
+		assert.equal(serverManifest.dependencies["pi-stable"], "2.0.0");
+
+		const pinned = runCheckPinnedDeps(root);
+		assert.equal(pinned.status, 0, pinned.stderr);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
