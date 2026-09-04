@@ -22,7 +22,10 @@ function collectPackageJsonFiles(directory) {
 }
 
 function isInternalWorkspaceDependency(name) {
-	return name.startsWith("pi-stable-");
+	// The coding-agent package publishes as exactly "pi-stable" (no suffix), so the
+	// "pi-stable-" prefix test alone would treat it as an external dependency and
+	// reject the "^x.y.z" specifiers that scripts/sync-versions.js writes on release.
+	return name === "pi-stable" || name.startsWith("pi-stable-");
 }
 
 function isNonRegistrySpecifier(specifier) {
