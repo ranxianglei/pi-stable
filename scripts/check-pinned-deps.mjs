@@ -22,7 +22,7 @@ function collectPackageJsonFiles(directory) {
 }
 
 function isInternalWorkspaceDependency(name) {
-	return name.startsWith("pi-stable-");
+	return name === "pi-stable" || name.startsWith("pi-stable-");
 }
 
 function isNonRegistrySpecifier(specifier) {
