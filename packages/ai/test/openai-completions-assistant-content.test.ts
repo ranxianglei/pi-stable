@@ -1,19 +1,6 @@
-/**
- * Assistant messages that contain only tool calls must serialize with an
- * empty-string content, never null: some OpenAI-compatible proxies reject or
- * hang on "content": null (issue #1).
- */
 import { describe, expect, it } from "vitest";
 import { convertMessages } from "../src/api/openai-completions.ts";
-import { getModel } from "../src/compat.ts";
-import type {
-	AssistantMessage,
-	Context,
-	Model,
-	OpenAICompletionsCompat,
-	ToolResultMessage,
-	Usage,
-} from "../src/types.ts";
+import type { AssistantMessage, Model, OpenAICompletionsCompat, ToolCall, Usage } from "../src/types.ts";
 
 const emptyUsage: Usage = {
 	input: 0,
@@ -24,9 +11,7 @@ const emptyUsage: Usage = {
 	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
 
-const compat: Omit<Required<OpenAICompletionsCompat>, "deferredToolsMode"> & {
-	deferredToolsMode?: OpenAICompletionsCompat["deferredToolsMode"];
-} = {
+const compat = {
 	supportsStore: true,
 	supportsDeveloperRole: true,
 	supportsReasoningEffort: true,
@@ -43,84 +28,138 @@ const compat: Omit<Required<OpenAICompletionsCompat>, "deferredToolsMode"> & {
 	zaiToolStream: false,
 	supportsStrictMode: true,
 	supportsOpenAIGrammarTools: false,
-	cacheControlFormat: "anthropic",
+	cacheControlFormat: undefined,
 	sendSessionAffinityHeaders: false,
 	sessionAffinityFormat: "openai",
 	supportsLongCacheRetention: true,
+} satisfies Omit<Required<OpenAICompletionsCompat>, "cacheControlFormat" | "deferredToolsMode"> & {
+	cacheControlFormat?: OpenAICompletionsCompat["cacheControlFormat"];
+	deferredToolsMode?: OpenAICompletionsCompat["deferredToolsMode"];
 };
 
-function makeToolCallOnlyAssistant(id: string, command: string, timestamp: number) {
+function buildModel(baseUrl = "http://127.0.0.1:1"): Model<"openai-completions"> {
 	return {
-		role: "assistant",
-		content: [{ type: "toolCall", id, name: "bash", arguments: { command } }],
+		id: "repro-model",
+		name: "Repro Model",
 		api: "openai-completions",
-		provider: "openai",
-		model: "gpt-4o-mini",
-		usage: emptyUsage,
-		stopReason: "toolUse",
-		timestamp,
-	} satisfies AssistantMessage;
-}
-
-function buildToolResult(toolCallId: string, timestamp: number): ToolResultMessage {
-	return {
-		role: "toolResult",
-		toolCallId,
-		toolName: "bash",
-		content: [{ type: "text", text: "ok" }],
-		isError: false,
-		timestamp,
+		provider: "repro-provider",
+		baseUrl,
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 128000,
+		maxTokens: 4096,
+		compat,
 	};
 }
 
-describe("openai-completions assistant content", () => {
-	it("uses empty string content for tool-call-only assistant messages without tool results", () => {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
-		const model: Model<"openai-completions"> = {
-			...baseModel,
-			api: "openai-completions",
-		};
-		const now = Date.now();
-		const assistantMessage = makeToolCallOnlyAssistant("tool-1", "ls", now);
-		const context: Context = {
-			messages: [{ role: "user", content: "List the files", timestamp: now - 1 }, assistantMessage],
-		};
-		const messages = convertMessages(model, context, compat);
-		const assistantPayload = messages.find((m) => m.role === "assistant") as
-			| {
-					role: "assistant";
-					content: string | Array<unknown>;
-					tool_calls?: unknown;
-			  }
-			| undefined;
-		expect(assistantPayload).toBeTruthy();
-		expect(assistantPayload?.tool_calls).toBeTruthy();
-		expect(assistantPayload?.content).toBe("");
-		expect(assistantPayload?.content).not.toBe(null);
+function buildToolCallAssistant(toolCalls: ToolCall[]): AssistantMessage {
+	return {
+		role: "assistant",
+		content: toolCalls,
+		api: "openai-completions",
+		provider: "repro-provider",
+		model: "repro-model",
+		usage: emptyUsage,
+		stopReason: "toolUse",
+		timestamp: 2,
+	};
+}
+
+describe("openai-completions assistant content replay", () => {
+	it("serializes tool-call-only assistant replay with empty-string content", () => {
+		const messages = convertMessages(
+			buildModel(),
+			{
+				messages: [
+					{ role: "user", content: "Read README.md", timestamp: 1 },
+					buildToolCallAssistant([
+						{ type: "toolCall", id: "call_1", name: "read", arguments: { path: "README.md" } },
+					]),
+				],
+			},
+			compat,
+		);
+
+		expect(messages[1]).toEqual({
+			role: "assistant",
+			content: "",
+			tool_calls: [
+				{
+					id: "call_1",
+					type: "function",
+					function: {
+						name: "read",
+						arguments: '{"path":"README.md"}',
+					},
+				},
+			],
+		});
 	});
 
-	it("uses empty string content for tool-call-only assistant messages after tool results", () => {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
-		const model: Model<"openai-completions"> = {
-			...baseModel,
-			api: "openai-completions",
-		};
-		const now = Date.now();
-		const assistantMessage = makeToolCallOnlyAssistant("tool-1", "ls", now);
-		const context: Context = {
-			messages: [
-				{ role: "user", content: "List the files", timestamp: now - 1 },
-				assistantMessage,
-				buildToolResult("tool-1", now + 1),
+	it("keeps empty-string content when tool results follow the assistant", () => {
+		const messages = convertMessages(
+			buildModel(),
+			{
+				messages: [
+					{ role: "user", content: "Read README.md", timestamp: 1 },
+					buildToolCallAssistant([
+						{ type: "toolCall", id: "call_1", name: "read", arguments: { path: "README.md" } },
+					]),
+					{
+						role: "toolResult",
+						toolCallId: "call_1",
+						toolName: "read",
+						content: [{ type: "text", text: "contents" }],
+						isError: false,
+						timestamp: 3,
+					},
+				],
+			},
+			compat,
+		);
+
+		expect(messages[1]).toEqual({
+			role: "assistant",
+			content: "",
+			tool_calls: [
+				{
+					id: "call_1",
+					type: "function",
+					function: {
+						name: "read",
+						arguments: '{"path":"README.md"}',
+					},
+				},
 			],
-		};
-		const messages = convertMessages(model, context, compat);
-		const assistantPayload = messages.find((m) => m.role === "assistant") as
-			| {
-					role: "assistant";
-					content: string | Array<unknown>;
-			  }
-			| undefined;
-		expect(assistantPayload?.content).toBe("");
+		});
+		const toolMessages = messages.slice(2);
+		expect(toolMessages.map((message) => message.role)).toEqual(["tool"]);
+	});
+
+	it("still skips content-less assistant replays without tool calls", () => {
+		const messages = convertMessages(
+			buildModel(),
+			{
+				messages: [
+					{ role: "user", content: "Hi", timestamp: 1 },
+					{
+						role: "assistant",
+						content: [{ type: "text", text: "   " }],
+						api: "openai-completions",
+						provider: "repro-provider",
+						model: "repro-model",
+						usage: emptyUsage,
+						stopReason: "stop",
+						timestamp: 2,
+					},
+					{ role: "user", content: "Continue", timestamp: 3 },
+				],
+			},
+			compat,
+		);
+
+		const assistantCount = messages.filter((message) => message.role === "assistant").length;
+		expect(assistantCount).toBe(0);
 	});
 });
