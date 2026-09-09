@@ -1,6 +1,11 @@
 name: Publish pi-stable
 
 # Publishes all 5 pi-stable-* packages in dependency order via scripts/publish.mjs.
+# Authentication: npm trusted publishing (OIDC). The npm CLI exchanges the
+# GitHub Actions ID token for a short-lived npm token per package. Requires
+# `permissions: id-token: write`, the `npm-publish` GitHub environment, and a
+# trusted publisher configured on the npm side for this repo + workflow.
+# No static token.
 # Triggers:
 #   1. push tag v*        -> builds and publishes
 #   2. workflow_dispatch  -> manual; defaults to dry-run (validate only).
@@ -19,6 +24,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
@@ -48,8 +54,11 @@ jobs:
       - name: Validate packages (dry run)
         run: node scripts/publish.mjs --dry-run
 
+      # Node 22.19.0 ships npm 10.9.x, which has no OIDC token exchange.
+      # Trusted publishing requires npm >= 11.5.0 (upstream pins 11.16.0).
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@11.16.0 --ignore-scripts
+
       - name: Publish all packages
         if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false') }}
         run: node scripts/publish.mjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
