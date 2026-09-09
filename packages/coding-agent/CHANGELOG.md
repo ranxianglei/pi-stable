@@ -12,6 +12,9 @@
 
 ### Fixed
 
+- Fixed `find` results when searching from filesystem roots, including POSIX `/` and Windows bare drive roots, so relative paths preserve the first segment and directory matches use a single trailing slash ([#6104](https://github.com/earendil-works/pi/issues/6104)).
+- Fixed Git Bash, MSYS, Cygwin, and WSL drive paths passed to built-in file tools resolving against the current Windows drive instead of their native drive ([#7064](https://github.com/earendil-works/pi/issues/7064), [#7547](https://github.com/earendil-works/pi/issues/7547)).
+- Fixed path-containing `find` globs returning no results on Windows ([#6817](https://github.com/earendil-works/pi/issues/6817)).
 - Fixed Windows shell aborts crashing Pi when `taskkill.exe` is unavailable on `PATH` ([#6596](https://github.com/earendil-works/pi/issues/6596)).
 - Fixed extension messages sent with `triggerTurn: false` while the agent is running being inserted between a tool call and its result, which made providers that validate message order reject the replayed history. They are now appended once the turn's tool results are in ([#8537](https://github.com/earendil-works/pi/issues/8537)).
 
