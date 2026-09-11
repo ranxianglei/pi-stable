@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed Windows path handling for `NodeExecutionEnv` file basenames, recursive skill loading, and prompt template names.
+- Fixed Windows `NodeExecutionEnv` aborts crashing when `taskkill.exe` is unavailable on `PATH` ([#6596](https://github.com/earendil-works/pi/issues/6596)).
+
 ## [0.83.0] - 2026-07-29
 
 ## [0.82.1] - 2026-07-25
