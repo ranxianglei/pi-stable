@@ -1,6 +1,6 @@
 {
 	"name": "pi-stable-evals",
-	"version": "0.83.0",
+	"version": "0.83.1",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -8,8 +8,8 @@
 		"eval": "node scripts/run-evals.mjs"
 	},
 	"devDependencies": {
-		"pi-stable-ai": "0.83.6",
-		"pi-stable": "0.83.6",
+		"pi-stable-ai": "^0.83.7",
+		"pi-stable": "^0.83.7",
 		"@types/node": "24.12.4",
 		"shx": "0.4.0",
 		"typescript": "5.9.3",
