@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Pinned the Fire Pass fast router test to the image-capable Kimi K3 Fast router model instead of picking an arbitrary `-fast` router, so the suite no longer fails when models.dev adds text-only fast routers ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+- Retargeted the GitHub Copilot OAuth picker-catalog test from gpt-4.1 to gpt-5.4 after GitHub removed gpt-4.1 from the Copilot catalog, which left the generated-catalog intersection empty and broke CI on master ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+
 ## [0.83.7] - 2026-09-04
 
 ### Fixed
