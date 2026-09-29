@@ -2570,13 +2570,18 @@ async function generateModels() {
 
 	const serializeJson = (value: unknown) => `${JSON.stringify(value, null, generatorOptions.pretty ? 2 : undefined)}\n`;
 	const writeJson = (path: string, value: unknown) => writeFileSync(path, serializeJson(value));
-	const generatedDataProviderIds = generatorOptions.dataOnly
-		? readModelDataProviderIds(packageRoot)
-		: sortedProviderIds;
-	const missingProviderIds = generatedDataProviderIds.filter((providerId) => !jsonProviders[providerId]);
+	// Committed catalogs are the baseline in every mode. A provider family that vanishes from
+	// live data must fail loudly here instead of silently deleting its committed shards below.
+	const committedProviderIds = readModelDataProviderIds(packageRoot);
+	const missingProviderIds = committedProviderIds.filter((providerId) => !jsonProviders[providerId]);
 	if (missingProviderIds.length > 0) {
-		throw new Error(`Cannot hydrate missing providers: ${missingProviderIds.join(", ")}`);
+		throw new Error(
+			`Cannot hydrate missing providers: ${missingProviderIds.join(
+				", ",
+			)}. Live data no longer contains these committed provider families; update scripts/generate-models.ts or intentionally remove the provider(s).`,
+		);
 	}
+	const generatedDataProviderIds = generatorOptions.dataOnly ? committedProviderIds : sortedProviderIds;
 
 	// Only the ignored internal data is grouped by API for type derivation. Public JSON catalog output stays flat.
 	const generatedDataProviders: Record<string, Record<string, Record<string, Model<Api>>>> = {};

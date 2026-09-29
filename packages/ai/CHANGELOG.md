@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `generate-models` full generation to enforce the committed provider catalog as a baseline like `--data-only` already did: when a committed provider family is missing from live data it now fails with "Cannot hydrate missing providers" before writing or deleting anything, instead of silently deleting the committed `.models.ts` shards and breaking the build ([#39](https://github.com/ranxianglei/pi-stable/issues/39)).
+- Fixed the Fireworks, GitHub Copilot, xAI, and OpenCode Zen provider factories to pin their supported-API generic on `createProvider`, so api-map typing no longer collapses when the generated catalog omits one of the declared API groups ([#39](https://github.com/ranxianglei/pi-stable/issues/39)).
+
 ## [0.83.7] - 2026-09-04
 
 ### Fixed
