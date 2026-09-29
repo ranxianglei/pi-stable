@@ -5,6 +5,7 @@
 ### Fixed
 
 - Retargeted the GitHub Copilot picker-availability registry test from gpt-4.1 to gpt-5.4 after GitHub removed gpt-4.1 from the Copilot catalog, unblocking CI on master ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+- Retargeted the model-registry override tests from openrouter `anthropic/claude-opus-4` (retired from the catalog) to `anthropic/claude-opus-4.1` so the suite no longer fails on catalog drift ([#42](https://github.com/ranxianglei/pi-stable/pull/42)).
 
 ## [0.83.7] - 2026-09-04
 
