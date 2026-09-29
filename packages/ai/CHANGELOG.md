@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `generate-models` full generation to enforce the committed provider catalog as a baseline like `--data-only` already did: when a committed provider family is missing from live data it now fails with "Cannot hydrate missing providers" before writing or deleting anything, instead of silently deleting the committed `.models.ts` shards and breaking the build ([#39](https://github.com/ranxianglei/pi-stable/issues/39)).
+- Fixed the Fireworks, GitHub Copilot, xAI, and OpenCode Zen provider factories to pin their supported-API generic on `createProvider`, so api-map typing no longer collapses when the generated catalog omits one of the declared API groups ([#39](https://github.com/ranxianglei/pi-stable/issues/39)).
+- Pinned the Fire Pass fast router test to the image-capable Kimi K3 Fast router model instead of picking an arbitrary `-fast` router, so the suite no longer fails when models.dev adds text-only fast routers ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+- Retargeted the GitHub Copilot OAuth picker-catalog test from gpt-4.1 to gpt-5.4 after GitHub removed gpt-4.1 from the Copilot catalog, which left the generated-catalog intersection empty and broke CI on master ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+- Fixed `generate-models` to follow the models.dev rename of `kimi-for-coding` to `kimi-code-plan-cn` / `kimi-code-plan-global` (falling back to the legacy key), so kimi-coding hydration no longer fails with "Cannot hydrate missing providers" and the committed shard stays byte-identical ([#42](https://github.com/ranxianglei/pi-stable/pull/42)).
+- Retargeted model-catalog tests off retired entries (opencode-go/fireworks/together `kimi-k2.6*`, fireworks `glm-5p2*`, openrouter `anthropic/claude-opus-4`) onto their current catalog successors so the suite no longer breaks on models.dev catalog drift ([#42](https://github.com/ranxianglei/pi-stable/pull/42)).
+
 ## [0.83.7] - 2026-09-04
 
 ### Fixed
