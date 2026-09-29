@@ -3631,7 +3631,7 @@ export class InteractiveMode {
 		if (omitted > 0) {
 			this.chatContainer.addChild(
 				new Text(
-					theme.fg("secondary", `… ${omitted} earlier entries not replayed (session file keeps the full history)`),
+					theme.fg("dim", `… ${omitted} earlier entries not replayed (session file keeps the full history)`),
 					1,
 					0,
 				),
