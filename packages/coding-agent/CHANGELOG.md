@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Retargeted the GitHub Copilot picker-availability registry test from gpt-4.1 to gpt-5.4 after GitHub removed gpt-4.1 from the Copilot catalog, unblocking CI on master ([#35](https://github.com/ranxianglei/pi-stable/issues/35)).
+
 ## [0.83.7] - 2026-09-04
 
 ### Changed
