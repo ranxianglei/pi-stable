@@ -1830,9 +1830,16 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Kimi For Coding models
-		if (data["kimi-for-coding"]?.models) {
-			const kimiModels = data["kimi-for-coding"].models as Record<string, ModelsDevModel>;
+		// Process Kimi For Coding models. models.dev renamed the entry from
+		// "kimi-for-coding" to "kimi-code-plan-cn" / "kimi-code-plan-global"
+		// (2026-09); both plans expose the same subscription catalog. Prefer the
+		// CN entry, fall back to global, then to the legacy key during transition.
+		const kimiPlanModels =
+			data["kimi-code-plan-cn"]?.models ??
+			data["kimi-code-plan-global"]?.models ??
+			data["kimi-for-coding"]?.models;
+		if (kimiPlanModels) {
+			const kimiModels = kimiPlanModels as Record<string, ModelsDevModel>;
 			const hasCanonicalModel = Object.prototype.hasOwnProperty.call(kimiModels, "kimi-for-coding");
 
 			const kimiAliases = new Set(["k2p5", "k2p6", "k2p7"]);
@@ -2570,13 +2577,18 @@ async function generateModels() {
 
 	const serializeJson = (value: unknown) => `${JSON.stringify(value, null, generatorOptions.pretty ? 2 : undefined)}\n`;
 	const writeJson = (path: string, value: unknown) => writeFileSync(path, serializeJson(value));
-	const generatedDataProviderIds = generatorOptions.dataOnly
-		? readModelDataProviderIds(packageRoot)
-		: sortedProviderIds;
-	const missingProviderIds = generatedDataProviderIds.filter((providerId) => !jsonProviders[providerId]);
+	// Committed catalogs are the baseline in every mode. A provider family that vanishes from
+	// live data must fail loudly here instead of silently deleting its committed shards below.
+	const committedProviderIds = readModelDataProviderIds(packageRoot);
+	const missingProviderIds = committedProviderIds.filter((providerId) => !jsonProviders[providerId]);
 	if (missingProviderIds.length > 0) {
-		throw new Error(`Cannot hydrate missing providers: ${missingProviderIds.join(", ")}`);
+		throw new Error(
+			`Cannot hydrate missing providers: ${missingProviderIds.join(
+				", ",
+			)}. Live data no longer contains these committed provider families; update scripts/generate-models.ts or intentionally remove the provider(s).`,
+		);
 	}
+	const generatedDataProviderIds = generatorOptions.dataOnly ? committedProviderIds : sortedProviderIds;
 
 	// Only the ignored internal data is grouped by API for type derivation. Public JSON catalog output stays flat.
 	const generatedDataProviders: Record<string, Record<string, Record<string, Model<Api>>>> = {};
