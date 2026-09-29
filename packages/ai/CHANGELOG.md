@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed Fireworks `glm-*` and `*kimi-k3*` models to route through the OpenAI-compatible endpoint (`https://api.fireworks.ai/inference/v1`) instead of the Anthropic-compatible endpoint, mirroring upstream pi-mono, so GLM/Kimi-K3 requests hit the correct API and the generated catalog keeps its `openai-completions` group ([#40](https://github.com/ranxianglei/pi-stable/issues/40)).
+
 ## [0.83.8] - 2026-09-29
 
 ### Fixed

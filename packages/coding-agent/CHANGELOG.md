@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Changed the default Fireworks model from `accounts/fireworks/models/kimi-k2p6` to `accounts/fireworks/models/kimi-k3`: the old model no longer exists in the models.dev catalog, so Fireworks default resolution was silently falling back to an arbitrary first catalog entry ([#40](https://github.com/ranxianglei/pi-stable/issues/40)).
+
 ## [0.83.8] - 2026-09-29
 
 ### Fixed
