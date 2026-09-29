@@ -2,9 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `npm run check:default-models` (wired into `npm run check`) which validates that every `defaultModelPerProvider` entry exists in the generated model catalog, so dead defaults fail CI instead of silently falling back to the first catalog entry ([#43](https://github.com/ranxianglei/pi-stable/issues/43)).
+
 ### Changed
 
 - Changed the default Fireworks model from `accounts/fireworks/models/kimi-k2p6` to `accounts/fireworks/models/kimi-k3`: the old model no longer exists in the models.dev catalog, so Fireworks default resolution was silently falling back to an arbitrary first catalog entry ([#40](https://github.com/ranxianglei/pi-stable/issues/40)).
+- Changed the remaining dead per-provider defaults, which were silently falling back to the first catalog entry because their pinned ids no longer exist in the models.dev catalog: Cerebras `zai-glm-4.7` → `gpt-oss-120b`, Z.AI (`zai` and `zai-coding-cn`) `glm-5.1` → `glm-5.3`, Together `moonshotai/Kimi-K2.6` → `moonshotai/Kimi-K3`, OpenCode Go `kimi-k2.6` → `kimi-k3`, Cloudflare AI Gateway `workers-ai/@cf/moonshotai/kimi-k2.6` → `gpt-5.5` ([#43](https://github.com/ranxianglei/pi-stable/issues/43)).
+
+### Fixed
+
+- Fixed the remaining stale offline-test pins after upstream catalog retargeting: the last OpenRouter override assertion uses `anthropic/claude-opus-4.1` (the bare `anthropic/claude-opus-4` id no longer exists in the live catalog) and the default-model assertions track the new Z.AI and Cerebras defaults ([#43](https://github.com/ranxianglei/pi-stable/issues/43)).
 
 ## [0.83.8] - 2026-09-29
 
