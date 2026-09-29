@@ -3623,7 +3623,7 @@ export class InteractiveMode {
 			const message = entry.message;
 			if (message.role !== "user") continue;
 			const text = this.getUserMessageText(message);
-			if (text) this.editor.addToHistory(text);
+			if (text) this.editor.addToHistory?.(text);
 		}
 
 		const rendered = initialReplaySlice(entries);
